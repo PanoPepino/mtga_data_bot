@@ -1,6 +1,5 @@
 import discord
-
-from cogs.utils import check_trophy, parse_runs, validate_runs
+from cogs.utils import check_trophy
 from config import COLOR_NORMAL, COLOR_TROPHY
 
 
@@ -8,9 +7,7 @@ def build_embedding(user: discord.User | discord.Member,
                     deck: str,
                     runs: list[dict]) -> discord.Embed:
     """
-    Builds a Discord embed from all runs in a session.
-    Shows each run with its matches, optional comments,
-    and a trophy field if any run was a 7-0.
+    Builds a Discord embed from all runs. Shows each run with its matches, optional comments, and a trophy field if any run was a 7-0.
     """
 
     lines = [f"**deck:** {deck}\n"]  # heading line
@@ -35,11 +32,10 @@ def build_embedding(user: discord.User | discord.Member,
         lines.append("")                    # blank line after header
         lines.append(run["matches"])        # match lines
 
-        # Comments belong to each run — must be inside the loop
-        if run.get("comments"):
-            lines.append("")
-            lines.append(f'*comments: {run["comments"]}*')
-
+        # Comments belong to each run
+    if run.get("comments"):
+        lines.append("")
+        lines.append(f'*comments: {run["comments"]}*')
         lines.append("")                    # blank line between runs
 
     # Build embed once after all runs are processed
@@ -53,9 +49,7 @@ def build_embedding(user: discord.User | discord.Member,
         icon_url=user.display_avatar.url,
     )
 
-    embed.add_field(name="\u200b", value="\u200b", inline=False)  # ← invisible spacer field
-
-    # Trophy field — appears in embed body, much more visible than footer
+    # Trophy field, appears in embed body
     if has_trophy:
         embed.add_field(
             name="🏆 TROPHY RUN 🏆",

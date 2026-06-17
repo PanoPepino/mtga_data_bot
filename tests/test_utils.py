@@ -1,4 +1,5 @@
-from cogs.utils import parse_runs, validate_runs, check_trophy
+from cogs.utils import build_ladder_description
+from cogs.utils import parse_runs, validate_run_ladder, validate_runs_metagame, check_trophy
 
 
 def test_parse_two_runs():
@@ -11,23 +12,48 @@ def test_parse_two_runs():
 
 def test_validate_valid_runs():
     runs = [[("GB Lands", "2-1"), ("W Stompy", "0-2")]]
-    assert validate_runs(runs) == []
+    raw = "Run 1:\nGB Lands 2-1\nW Stompy 0-2"
+    assert validate_runs_metagame(runs, raw) == []
 
 
 def test_validate_empty():
-    assert validate_runs([]) != []
+    raw = "Run 1:\n"
+    assert validate_runs_metagame([], raw) != []
 
 
 def test_validate_bad_result():
     runs = [[("GB Lands", "win")]]
-    errors = validate_runs(runs)
+    raw = "Run 1:\nGB Lands win"
+    errors = validate_runs_metagame(runs, raw)
     assert len(errors) > 0
 
 
 def test_validate_empty_run():
     runs = [[]]
-    errors = validate_runs(runs)
+    raw = "Run 1:\n"  # header but no matches
+    errors = validate_runs_metagame(runs, raw)
     assert len(errors) > 0
+
+
+def test_build_ladder_description_basic():
+    desc = build_ladder_description(
+        "Izzet Tempo",
+        "GB Lands 2-1\nW Stompy 0-2",
+        "",
+    )
+    assert "**deck:** Izzet Tempo" in desc
+    assert "GB Lands 2-1" in desc
+    assert "W Stompy 0-2" in desc
+    assert "comments" not in desc
+
+
+def test_build_ladder_description_with_comments():
+    desc = build_ladder_description(
+        "Izzet Tempo",
+        "GB Lands 2-1",
+        "felt great",
+    )
+    assert "*comments: felt great*" in desc
 
 
 def test_trophy_7_wins():

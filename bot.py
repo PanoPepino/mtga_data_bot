@@ -22,10 +22,6 @@ async def on_ready():
 
 
 @bot.event
-async def on_interaction(interaction: discord.Interaction):
-    print(f"[DEBUG] Interaction: type={interaction.type} user={interaction.user}")
-
-
 async def main():
     async with bot:
         try:

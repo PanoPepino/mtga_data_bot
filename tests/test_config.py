@@ -3,7 +3,6 @@ from config import (
     LADDER_CHANNEL_ID,
     TROPHY_WIN_COUNT,
     MAX_DECK_LENGTH,
-    SESSION_TIMEOUT_SEC,
 )
 
 
@@ -19,4 +18,3 @@ def test_trophy_win_count():
 
 def test_limits_are_positive():
     assert MAX_DECK_LENGTH > 0
-    assert SESSION_TIMEOUT_SEC > 0
