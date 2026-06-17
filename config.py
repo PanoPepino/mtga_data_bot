@@ -19,3 +19,10 @@ MAX_COMMENT_LENGTH = 300
 
 # Trophy condition
 TROPHY_WIN_COUNT = 7
+
+
+# Saving location
+
+MTGA_DATA_DIR = 'collected_data'
+LADDER_FILE = 'ladder_2026_06.csv'
+CHALLENGE_FILE = 'challenge_2026_07.csv'
