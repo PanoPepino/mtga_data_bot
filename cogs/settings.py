@@ -11,6 +11,7 @@ from utils.guild_settings import (
     set_allowed_channel,
     set_input_style,
     set_save_location_key,
+    set_delimiter
 )
 
 
@@ -139,33 +140,51 @@ class SettingsCog(commands.Cog):
             ephemeral=True
         )
 
-    @settings.command(name="set_input_style", description="Set the input style")
-    @app_commands.describe(style="Which input format the bot should expect?")
-    @app_commands.choices(
-        style=[
-            app_commands.Choice(name="Deck, delimiter, result", value="deck_delimiter_result"),
-            app_commands.Choice(name="Result, delimiter, deck", value="result_delimiter_deck"),
-        ]
+    @settings.command(
+        name="set_input_style",
+        description="Set the input style and delimiter for this server."
     )
+    @app_commands.describe(
+        style="Choose the order of deck and result.",
+        delimiter="Choose the separator between deck and result.",
+    )
+    @app_commands.choices(style=[
+        app_commands.Choice(
+            name="Deck, delimiter, result",
+            value="deck_delimiter_result",
+        ),
+        app_commands.Choice(
+            name="Result, delimiter, deck",
+            value="result_delimiter_deck",
+        ),
+    ])
+    @app_commands.choices(delimiter=[
+        app_commands.Choice(name="vs", value=" vs "),
+        app_commands.Choice(name="-", value=" - "),
+        app_commands.Choice(name="|", value=" | "),
+        app_commands.Choice(name="/", value=" / "),
+    ])
     @app_commands.default_permissions(manage_guild=True)
     @is_server_admin()
-    async def set_input_style_cmd(
+    async def set_input_style(
         self,
         interaction: discord.Interaction,
-        style: app_commands.Choice[str]
+        style: app_commands.Choice[str],
+        delimiter: app_commands.Choice[str],
     ):
         if interaction.guild is None:
             await interaction.response.send_message(
                 "This command can only be used in a server.",
-                ephemeral=True
+                ephemeral=True,
             )
             return
 
         set_input_style(interaction.guild.id, style.value)
+        set_delimiter(interaction.guild.id, delimiter.value)
 
         await interaction.response.send_message(
-            f"Input style set to `{style.value}`.",
-            ephemeral=True
+            f"Input style set to `{style.value}` and delimiter set to `{delimiter.value}`.",
+            ephemeral=True,
         )
 
     @settings.command(name="reset_input_style", description="Reset input style to default")

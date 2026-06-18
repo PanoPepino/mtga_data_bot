@@ -20,22 +20,6 @@ MAX_COMMENT_LENGTH = 300
 # Trophy condition
 TROPHY_WIN_COUNT = 7
 
-# input style
-INPUT_STYLE = "result_delimiter_deck"
-DELIMITER = " vs "
-
-# Placeholder error and example for discord messages
-PH_DECK_DELIMITER_RESULT = (
-    f"GB Lands{DELIMITER}2-1\n"
-    f"W Stompy{DELIMITER}0-2"
-)
-
-PH_RESULT_DELIMITER_DECK = (
-    f"2-1{DELIMITER}GB Lands\n"
-    f"0-2{DELIMITER}R Stompy"
-)
-
-
 # Saving location
 SAVE_LOCATION_KEY = "server_specific"
 

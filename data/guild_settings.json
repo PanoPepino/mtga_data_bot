@@ -22,8 +22,8 @@
       "challenge": 1515970497974632561,
       "ladder": 1515989671631519754
     },
-    "input_style": null,
-    "delimiter": null,
-    "save_location_key": null
+    "input_style": "result_delimiter_deck",
+    "delimiter": " | ",
+    "save_location_key": "server_specific"
   }
 }
