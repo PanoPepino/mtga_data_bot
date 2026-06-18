@@ -1,11 +1,20 @@
 import discord
-from config import MAX_COMMENT_LENGTH, MAX_DECK_LENGTH, MAX_MATCHES_LENGTH, COLOR_NORMAL
-from cogs.embedding import build_embedding
+
+from cogs.embedding import build_embedding, build_ladder_description
 from cogs.utils import (
     parse_runs,
     validate_runs_metagame,
-    build_ladder_description,
-    validate_run_ladder)
+    validate_run_ladder,
+    parse_match_line,
+    get_placeholder)
+
+from config import (
+    DELIMITER,
+    MAX_COMMENT_LENGTH,
+    MAX_DECK_LENGTH,
+    MAX_MATCHES_LENGTH,
+    COLOR_NORMAL,
+    INPUT_STYLE)
 
 from cogs.storage import save_metagame_match, save_ladder_match
 
@@ -27,7 +36,7 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
     runs_input = discord.ui.TextInput(
         label="Your runs  (Run N: then matches)",
         style=discord.TextStyle.paragraph,
-        placeholder="Run 1:\nGB Lands 2-1\nW Stompy 0-2\n\nRun 2:\nSultai Shadow 2-0",
+        placeholder=f"Run 1:\n{get_placeholder(INPUT_STYLE)}\n\nRun 2:\n{get_placeholder(INPUT_STYLE)}",
         max_length=MAX_MATCHES_LENGTH,
     )
 
@@ -44,23 +53,20 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
 
         # parse_runs splits the text into a list of runs,
         # each run being a list of (opponent, result) tuples
-        runs = parse_runs(self.runs_input.value)
+        runs = parse_runs(self.runs_input.value, INPUT_STYLE)
 
         # Check formatting before submission
         # If not valid, do not post and tell user with a private message
-        errors = validate_runs_metagame(runs, self.runs_input.value)
+        errors = validate_runs_metagame(runs, self.runs_input.value, INPUT_STYLE)
         if errors:
-            error_text = "\n".join(f"• {e}" for e in errors)
             msg = (
-                "❌ I cannot parse your runs ❌"
-                f"Please fix:\n\n{error_text}\n\n"
+                "❌ I cannot parse your runs ❌\n"
                 "Required format format:\n"
-                "```Run 1:\nGB Lands 2-1\nW Stompy 0-2\netc.\n\n"
-                "Run 2:\nSultai Shadow 2-0\nR Stompy 1-2"
+                f"```Run 1:\n{get_placeholder(INPUT_STYLE)}\netc.\n\n"
+                f"Run 2:\n{get_placeholder(INPUT_STYLE)}"
                 "```"
             )
-            await interaction.response.send_message(msg, ephemeral=True,
-                                                    )
+            await interaction.response.send_message(msg, ephemeral=True)
             return
 
         # If everything ok, private message with validation of submission
@@ -69,15 +75,21 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
         )
 
         # Convert introduced data to dictionaries for easy storage and posting
+
         session_runs = []
         for i, run in enumerate(runs):
-            # Reconstruct match text from parsed tuples for display
-            matches_text = "\n".join(f"{opponent} {result}" for opponent, result in run)
-            session_runs.append({
-                "matches": matches_text,
-                "comments": self.comments.value if i == 0 else "",
-            })
+            # Reconstruct match text from parsed tuples for display depending on the input style
+            if INPUT_STYLE == "deck_delimeter_result":
+                matches_text = "\n".join(f"{opponent}{DELIMITER}{result}" for opponent, result in run)
+            elif INPUT_STYLE == "result_delimiter_result":
+                matches_text = "\n".join(f"{result}{DELIMITER}{opponent}" for opponent, result in run)
 
+            session_runs.append(
+                {
+                    "matches": matches_text,
+                    "comments": self.comments.value if i == len(runs)-1 else ""
+                }
+            )
         # Save data to database
         user_name = interaction.user.display_name
         user_deck = self.pilot_deck.value
@@ -111,7 +123,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
     matches = discord.ui.TextInput(
         label="Matches (one per line)",
         style=discord.TextStyle.paragraph,
-        placeholder="GB Lands 2-1\nW Stompy 0-2\nUR Tempo 2-0",
+        placeholder=f"{get_placeholder(INPUT_STYLE)}",
         max_length=MAX_MATCHES_LENGTH,
     )
 
@@ -125,18 +137,14 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
     async def on_submit(self, interaction: discord.Interaction):
 
         # Validate the raw text
-        errors = validate_run_ladder(self.matches.value)
+        errors = validate_run_ladder(self.matches.value, INPUT_STYLE)
 
         if errors:
-            error_text = "\n".join(f"• {e}" for e in errors)
             msg = (
-                "❌ I cannot parse your ladder entry ❌ \n\n"
-                f"{error_text}\n\n"
+                "❌ I cannot parse your ladder entry ❌\n"
                 "Required format:\n"
                 "```"
-                "GB Lands 2-1\n"
-                "W Stompy 0-2\n"
-                "UR Tempo 2-0\n"
+                f"{get_placeholder(INPUT_STYLE)}"
                 "```"
             )
             await interaction.response.send_message(msg, ephemeral=True)
@@ -164,7 +172,11 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
             if not line:
                 continue
 
-            oppo_deck, result = line.rsplit(" ", 1)  # e.g. "GB Lands", "2-1"
+            parsed = parse_match_line(line, INPUT_STYLE)
+            if parsed is None:
+                continue
+
+            oppo_deck, result = parsed
             save_ladder_match(
                 user_name=user_name,
                 user_deck=user_deck,

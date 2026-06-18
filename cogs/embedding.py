@@ -1,6 +1,6 @@
 import discord
-from cogs.utils import check_trophy
-from config import COLOR_NORMAL, COLOR_TROPHY
+from cogs.utils import check_trophy, parse_match_line, summarise_run_record
+from config import COLOR_NORMAL, COLOR_TROPHY, INPUT_STYLE
 
 
 def build_embedding(user: discord.User | discord.Member,
@@ -16,19 +16,26 @@ def build_embedding(user: discord.User | discord.Member,
     for i, run in enumerate(runs, 1):
 
         # Parse match lines into (opponent, result) tuples for trophy check
-        parsed_run = [
-            tuple(line.rsplit(" ", 1)) if " " in line else (line, "?")
-            for line in run["matches"].strip().splitlines()
-            if line.strip()
-        ]
+        parsed_run = []
+        for line in run['matches'].strip().splitlines():
+            line = line.strip()
+            if not line:
+                continue
 
+        parsed = parse_match_line(line, INPUT_STYLE)
+        if parsed is None:
+            parsed_run.append((line, "?"))
+        else:
+            parsed_run.append(parsed)
+
+        run_record = summarise_run_record(parsed_run)
         # Check if this run is a 7-0
         run_is_trophy = check_trophy(parsed_run)
         if run_is_trophy:
             has_trophy = True
 
         # Run header with trophy emoji if applicable
-        lines.append(f"**Run {i}:** " + ("🏆" if run_is_trophy else ""))
+        lines.append(f"**Run {i}: {run_record}** " + ("🏆" if run_is_trophy else ""))
         lines.append("")                    # blank line after header
         lines.append(run["matches"])        # match lines
 
@@ -58,3 +65,12 @@ def build_embedding(user: discord.User | discord.Member,
         )
 
     return embed
+
+
+def build_ladder_description(deck: str, matches: str, comments: str) -> str:
+    lines = [f"**deck:** {deck}", ""]
+    lines.append(matches.strip())
+    if comments:
+        lines.append("")
+        lines.append(f"*comments: {comments}*")
+    return "\n".join(lines)

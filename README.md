@@ -17,3 +17,6 @@ MTGA Data Bot is a Discord bot that collects **Metagame Challenge** and **Ladder
   - Validates input format also.
   - Saves each match as one CSV row.
 
+
+<!--
+-->

@@ -22,7 +22,24 @@ TROPHY_WIN_COUNT = 7
 
 
 # Saving location
-
 MTGA_DATA_DIR = 'collected_data'
 LADDER_FILE = 'ladder_2026_06.csv'
 CHALLENGE_FILE = 'challenge_2026_07.csv'
+
+
+# input style
+DELIMITER = ' vs '  # how to separate results and oppo_deck inf
+INPUT_STYLE = 'result_delimiter_deck'  # change to deck_delimiter_result to place first deck and then result
+
+
+# Placeholder error and example for discord messages
+
+PH_DECK_DELIMITER_RESULT = (
+    f"GB Lands{DELIMITER}2-1\n"
+    f"W Stompy{DELIMITER}0-2"
+)
+
+PH_RESULT_DELIMITER_DECK = (
+    f"2-1{DELIMITER}GB Lands\n"
+    f"0-2{DELIMITER}R Stompy"
+)
