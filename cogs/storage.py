@@ -9,7 +9,29 @@ METAGAME_FILE = DATA_DIR/CHALLENGE_FILE
 LADDER_FILE = DATA_DIR/LADDER_FILE
 
 
-def _ensure_header(path: Path) -> None:
+def _ensure_header_metagame(path: Path) -> None:
+    """
+    Create a csv file with the column titles
+    """
+
+    if not path.exists():
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(
+                [
+                    "timestamp_utc",
+                    "user_name",
+                    "user_deck",
+                    "run_result",
+                    "oppo_deck",
+                    "result",
+                    "comments"
+                ]
+            )
+
+
+def _ensure_header_ladder(path: Path) -> None:
     """
     Create a csv file with the column titles
     """
@@ -34,6 +56,7 @@ def save_metagame_match(
         *,                  # placeholder for anything
         user_name: str,
         user_deck: str,
+        run_result: str,
         oppo_deck: str,
         result:    str,
         comments:  str
@@ -41,7 +64,7 @@ def save_metagame_match(
     """
     Function to save the information provided by the user
     """
-    _ensure_header(METAGAME_FILE)
+    _ensure_header_metagame(METAGAME_FILE)
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     with METAGAME_FILE.open("a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -49,6 +72,7 @@ def save_metagame_match(
             [ts,
              user_name,
              user_deck,
+             run_result,
              oppo_deck,
              result,
              comments]
@@ -66,7 +90,7 @@ def save_ladder_match(
     """
     Function to save the information provided by the user
     """
-    _ensure_header(LADDER_FILE)
+    _ensure_header_ladder(LADDER_FILE)
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     with LADDER_FILE.open("a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)

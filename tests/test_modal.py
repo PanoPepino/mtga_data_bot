@@ -1,6 +1,6 @@
 
 
-from cogs.utils import build_ladder_description
+from utils.parse_and_check import build_ladder_description
 from cogs.embedding import build_embedding
 from types import SimpleNamespace
 from config import COLOR_TROPHY

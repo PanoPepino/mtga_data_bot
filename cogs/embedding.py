@@ -1,5 +1,5 @@
 import discord
-from cogs.utils import check_trophy, parse_match_line, summarise_run_record
+from utils.parse_and_check import check_trophy, parse_match_line, summarise_run_record
 from config import COLOR_NORMAL, COLOR_TROPHY, INPUT_STYLE
 
 
@@ -42,7 +42,7 @@ def build_embedding(user: discord.User | discord.Member,
         # Comments are tied to this specific run
         if run.get("comments"):
             lines.append("")
-            lines.append(f'*comments: {run["comments"]}*')
+            lines.append(f'*comments*: {run["comments"]}')
 
         lines.append("")                    # blank line between runs
 
@@ -59,6 +59,7 @@ def build_embedding(user: discord.User | discord.Member,
 
     # Trophy field, appears in embed body
     if has_trophy:
+        lines.append("")
         embed.add_field(
             name="\U0001f3c6 TROPHY RUN \U0001f3c6",
             value=f"**{user.display_name}** went 7-0 with **{deck}**! Congratulations! \U0001f389",

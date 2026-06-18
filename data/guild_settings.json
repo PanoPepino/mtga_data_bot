@@ -1,0 +1,29 @@
+{
+  "123456789012345678": {
+    "allowed_channels": {
+      "challenge": 111111111111111111,
+      "ladder": 222222222222222222
+    },
+    "input_style": "deck_delimiter_result",
+    "delimiter": "|",
+    "save_location_key": "server_specific"
+  },
+  "987654321098765432": {
+    "allowed_channels": {
+      "challenge": null,
+      "ladder": 333333333333333333
+    },
+    "input_style": "result_delimiter_deck",
+    "delimiter": ";",
+    "save_location_key": "shared"
+  },
+  "1515970497974632558": {
+    "allowed_channels": {
+      "challenge": 1515970497974632561,
+      "ladder": 1515989671631519754
+    },
+    "input_style": null,
+    "delimiter": null,
+    "save_location_key": null
+  }
+}

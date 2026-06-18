@@ -1,8 +1,9 @@
 import discord
 
 from cogs.embedding import build_embedding, build_ladder_description
-from cogs.utils import (
+from utils.parse_and_check import (
     parse_runs,
+    summarise_run_record,
     validate_runs_metagame,
     validate_run_ladder,
     parse_match_line,
@@ -34,7 +35,7 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
 
     # All runs in one box — player uses Run 1: / Run 2: headers
     runs_input = discord.ui.TextInput(
-        label="Your runs  (Run N: then matches)",
+        label="Your runs  (No need to write run result like 7-0. It is built automatically!)",
         style=discord.TextStyle.paragraph,
         placeholder=f"Run 1:\n{get_placeholder(INPUT_STYLE)}\n\nRun 2:\n{get_placeholder(INPUT_STYLE)}",
         max_length=MAX_MATCHES_LENGTH,
@@ -104,10 +105,12 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
         user_deck = self.pilot_deck.value
         user_comment = self.comments.value
         for run in runs:
+            run_result = summarise_run_record(run)
             for oppo_deck, result in run:  # Each new row is a new row in database
                 save_metagame_match(
                     user_name=user_name,
                     user_deck=user_deck,
+                    run_result=run_result,
                     oppo_deck=oppo_deck,
                     result=result,
                     comments=user_comment,

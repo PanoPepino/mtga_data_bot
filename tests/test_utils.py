@@ -1,5 +1,5 @@
-from cogs.utils import build_ladder_description
-from cogs.utils import parse_runs, validate_run_ladder, validate_runs_metagame, check_trophy
+from utils.parse_and_check import build_ladder_description
+from utils.parse_and_check import parse_runs, validate_run_ladder, validate_runs_metagame, check_trophy
 
 
 def test_parse_two_runs():

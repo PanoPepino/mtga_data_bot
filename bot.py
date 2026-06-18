@@ -21,14 +21,26 @@ async def on_ready():
         print(f"❌ Sync failed: {e}")
 
 
-@bot.event
 async def main():
     async with bot:
         try:
             await bot.load_extension("cogs.cog")
-            print("✅ Cog loaded")
+            print("✅ Main cog loaded")
         except Exception as e:
-            print(f"❌ Failed to load cog: {e}")
+            print(f"❌ Failed to load cogs.cog: {e}")
+
+        try:
+            await bot.load_extension("cogs.settings")
+            print("✅ Settings cog loaded")
+        except Exception as e:
+            print(f"❌ Failed to load cogs.settings: {e}")
+
+        try:
+            synced = await bot.tree.sync()
+            print(f"✅ Synced {len(synced)} command(s) globally")
+        except Exception as e:
+            print(f"❌ Sync failed: {e}")
+
         await bot.start(os.getenv("DISCORD_TOKEN"))
 
 

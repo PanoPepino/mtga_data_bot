@@ -242,12 +242,3 @@ def check_trophy(matches: list[tuple[str, str]]) -> bool:
     This function checks if a given run is a trophy (i.e. 7-0 in metagame challenge). It uses summarise run record.
     """
     return summarise_run_record(matches) == '7-0'
-
-
-def build_ladder_description(deck: str, matches: str, comments: str) -> str:
-    lines = [f"**deck:** {deck}", ""]
-    lines.append(matches.strip())
-    if comments:
-        lines.append("")
-        lines.append(f"*comments: {comments}*")
-    return "\n".join(lines)
