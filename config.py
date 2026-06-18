@@ -20,6 +20,15 @@ MAX_COMMENT_LENGTH = 300
 # Trophy condition
 TROPHY_WIN_COUNT = 7
 
+# Default delimiter used to separate deck name and result in match lines.
+# Admins can override this per-server via /settings.
+DELIMITER = " vs "
+
+# Default input style: which side of the delimiter is the deck name.
+# Options: "deck_delimiter_result" | "result_delimiter_deck"
+# Admins can override this per-server via /settings.
+INPUT_STYLE = "result_delimiter_deck"
+
 # Saving location
 SAVE_LOCATION_KEY = "server_specific"
 
