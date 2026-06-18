@@ -23,7 +23,7 @@
       "ladder": 1515989671631519754
     },
     "input_style": "result_delimiter_deck",
-    "delimiter": " | ",
+    "delimiter": " vs ",
     "save_location_key": "server_specific"
   }
 }
