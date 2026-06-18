@@ -60,8 +60,8 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
         errors = validate_runs_metagame(runs, self.runs_input.value, INPUT_STYLE)
         if errors:
             msg = (
-                "❌ I cannot parse your runs ❌\n"
-                "Required format format:\n"
+                "\u274c I cannot parse your runs \u274c\n"
+                "Required format:\n"
                 f"```Run 1:\n{get_placeholder(INPUT_STYLE)}\netc.\n\n"
                 f"Run 2:\n{get_placeholder(INPUT_STYLE)}"
                 "```"
@@ -71,37 +71,46 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
 
         # If everything ok, private message with validation of submission
         await interaction.response.send_message(
-            f"✅ {len(runs)} run(s) logged!", ephemeral=True
+            f"\u2705 {len(runs)} run(s) logged!", ephemeral=True
         )
 
         # Convert introduced data to dictionaries for easy storage and posting
-
         session_runs = []
         for i, run in enumerate(runs):
             # Reconstruct match text from parsed tuples for display depending on the input style
-            if INPUT_STYLE == "deck_delimeter_result":
-                matches_text = "\n".join(f"{opponent}{DELIMITER}{result}" for opponent, result in run)
-            elif INPUT_STYLE == "result_delimiter_result":
-                matches_text = "\n".join(f"{result}{DELIMITER}{opponent}" for opponent, result in run)
+            if INPUT_STYLE == "deck_delimiter_result":
+                matches_text = "\n".join(
+                    f"{oppo_deck}{DELIMITER}{result}" for oppo_deck, result in run
+                )
+            elif INPUT_STYLE == "result_delimiter_deck":
+                matches_text = "\n".join(
+                    f"{result}{DELIMITER}{oppo_deck}" for oppo_deck, result in run
+                )
+            else:
+                # Safe fallback — deck first
+                matches_text = "\n".join(
+                    f"{oppo_deck}{DELIMITER}{result}" for oppo_deck, result in run
+                )
 
             session_runs.append(
                 {
                     "matches": matches_text,
-                    "comments": self.comments.value if i == len(runs)-1 else ""
+                    "comments": self.comments.value if i == len(runs) - 1 else "",
                 }
             )
+
         # Save data to database
         user_name = interaction.user.display_name
         user_deck = self.pilot_deck.value
         user_comment = self.comments.value
         for run in runs:
-            for oppo_deck, result in run:  # Each new row is a new row in datbase
+            for oppo_deck, result in run:  # Each new row is a new row in database
                 save_metagame_match(
                     user_name=user_name,
                     user_deck=user_deck,
                     oppo_deck=oppo_deck,
                     result=result,
-                    comments=user_comment
+                    comments=user_comment,
                 )
 
         # The bot will post it
@@ -111,7 +120,8 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
 
 class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
     """
-    Class that operates in same terms as :class:`MetagameModal`, but allows user to upload a given run with any deck. Could be useful to extract data from the ladder and get better insights to establish tier lists. 
+    Class that operates in same terms as :class:`MetagameModal`, but allows user to upload a given run with any deck.
+    Could be useful to extract data from the ladder and get better insights to establish tier lists.
     """
 
     pilot_deck = discord.ui.TextInput(
@@ -141,7 +151,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
 
         if errors:
             msg = (
-                "❌ I cannot parse your ladder entry ❌\n"
+                "\u274c I cannot parse your ladder entry \u274c\n"
                 "Required format:\n"
                 "```"
                 f"{get_placeholder(INPUT_STYLE)}"
@@ -187,7 +197,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
 
         # Single ephemeral response visible only to the user
         await interaction.response.send_message(
-            content="✅ Ladder run logged (private).",
+            content="\u2705 Ladder run logged (private).",
             embed=embed,
             ephemeral=True,
         )
