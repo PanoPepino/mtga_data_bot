@@ -1,39 +1,90 @@
+import types
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+import cogs.modals as modals
 
 
-from utils.parse_and_check import build_ladder_description
-from cogs.embedding import build_embedding
-from types import SimpleNamespace
-from config import COLOR_TROPHY
+@pytest.mark.asyncio
+async def test_metagame_modal_passes_resolved_file_and_directory(monkeypatch):
+    modal = modals.MetagameModal("deck_delimiter_result", " vs ")
+    modal.pilot_deck._value = "Izzet Tempo"
+    modal.runs_input._value = "Run 1:\nMono Red vs W"
+    modal.comments._value = "test note"
 
+    monkeypatch.setattr(modals, "get_effective_input_style", lambda guild_id: "deck_delimiter_result")
+    monkeypatch.setattr(modals, "get_effective_delimiter", lambda guild_id: " vs ")
+    monkeypatch.setattr(modals, "get_effective_save_directory", lambda guild_id: "data/guilds/123/")
+    monkeypatch.setattr(modals, "get_effective_challenge_file", lambda guild_id: "challenge_custom.csv")
 
-def test_build_embedding_sets_trophy_color():
-    user = SimpleNamespace(display_name="Pan", display_avatar=SimpleNamespace(url="http://x"))
-    runs = [{
-        "matches": "Opp 1 2-1\nOpp 2 2-1\nOpp 3 2-1\nOpp 4 2-1\nOpp 5 2-1\nOpp 6 2-1\nOpp 7 2-1",
-        "comments": "",
-    }]
-    embed = build_embedding(user, "Izzet Tempo", runs)
-    # color should be TROPHY color when 7-0-equivalent
-    assert embed.colour.value == COLOR_TROPHY
-    assert "🏆" in embed.description
+    monkeypatch.setattr(modals, "parse_runs", lambda text, style, delim: [[("Mono Red", "W")]])
+    monkeypatch.setattr(modals, "validate_runs_metagame", lambda runs, raw, style: [])
+    monkeypatch.setattr(modals, "summarise_run_record", lambda run: "1-0")
+    monkeypatch.setattr(modals, "build_embedding", lambda *args, **kwargs: object())
 
+    save_mock = Mock()
+    monkeypatch.setattr(modals, "save_metagame_match", save_mock)
 
-def test_build_ladder_description_basic():
-    desc = build_ladder_description(
-        "Izzet Tempo",
-        "GB Lands 2-1\nW Stompy 0-2",
-        "",
+    interaction = types.SimpleNamespace(
+        guild_id=123,
+        user=types.SimpleNamespace(
+            display_name="Alice",
+            display_avatar=types.SimpleNamespace(url="https://example.com/avatar.png"),
+        ),
+        response=types.SimpleNamespace(send_message=AsyncMock()),
+        followup=types.SimpleNamespace(send=AsyncMock()),
     )
-    assert "**deck:** Izzet Tempo" in desc
-    assert "GB Lands 2-1" in desc
-    assert "W Stompy 0-2" in desc
-    assert "comments" not in desc
 
+    await modal.on_submit(interaction)
 
-def test_build_ladder_description_with_comments():
-    desc = build_ladder_description(
-        "Izzet Tempo",
-        "GB Lands 2-1",
-        "felt great",
+    save_mock.assert_called_once_with(
+        user_name="Alice",
+        user_deck="Izzet Tempo",
+        run_result="1-0",
+        oppo_deck="Mono Red",
+        result="W",
+        comments="test note",
+        save_dir="data/guilds/123/",
+        file_name="challenge_custom.csv",
     )
-    assert "*comments: felt great*" in desc
+
+
+@pytest.mark.asyncio
+async def test_ladder_modal_passes_resolved_file_and_directory(monkeypatch):
+    modal = modals.LadderModal("deck_delimiter_result", " vs ")
+    modal.pilot_deck._value = "Azorius Control"
+    modal.matches._value = "Gruul Aggro vs W"
+    modal.comments._value = "ladder note"
+
+    monkeypatch.setattr(modals, "get_effective_input_style", lambda guild_id: "deck_delimiter_result")
+    monkeypatch.setattr(modals, "get_effective_delimiter", lambda guild_id: " vs ")
+    monkeypatch.setattr(modals, "get_effective_save_directory", lambda guild_id: "data/guilds/123/")
+    monkeypatch.setattr(modals, "get_effective_ladder_file", lambda guild_id: "ladder_custom.csv")
+
+    monkeypatch.setattr(modals, "validate_run_ladder", lambda matches, style, delim: [])
+    monkeypatch.setattr(modals, "parse_match_line", lambda line, style, delim: ("Gruul Aggro", "W"))
+
+    save_mock = Mock()
+    monkeypatch.setattr(modals, "save_ladder_match", save_mock)
+
+    interaction = types.SimpleNamespace(
+        guild_id=123,
+        user=types.SimpleNamespace(
+            display_name="Bob",
+            display_avatar=types.SimpleNamespace(url="https://example.com/avatar.png"),
+        ),
+        response=types.SimpleNamespace(send_message=AsyncMock()),
+    )
+
+    await modal.on_submit(interaction)
+
+    save_mock.assert_called_once_with(
+        user_name="Bob",
+        user_deck="Azorius Control",
+        oppo_deck="Gruul Aggro",
+        result="W",
+        comments="ladder note",
+        save_dir="data/guilds/123/",
+        file_name="ladder_custom.csv",
+    )

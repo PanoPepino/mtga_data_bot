@@ -24,6 +24,7 @@
     },
     "input_style": "result_delimiter_deck",
     "delimiter": " vs ",
-    "save_location_key": "server_specific"
+    "save_location_key": "server_specific",
+    "challenge_file": "2026_challenge_july.csv"
   }
 }

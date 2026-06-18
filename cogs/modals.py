@@ -14,6 +14,8 @@ from utils.guild_settings import (
     get_effective_input_style,
     get_effective_delimiter,
     get_effective_save_directory,
+    get_effective_challenge_file,
+    get_effective_ladder_file
 )
 
 from config import (
@@ -67,6 +69,7 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
         input_style = get_effective_input_style(guild_id)
         delimiter = get_effective_delimiter(guild_id)
         save_dir = get_effective_save_directory(guild_id)
+        challenge_file = get_effective_challenge_file(guild_id)
 
         runs = parse_runs(self.runs_input.value, input_style, delimiter)
 
@@ -116,6 +119,7 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
                     result=result,
                     comments=user_comment,
                     save_dir=save_dir,
+                    file_name=challenge_file
                 )
 
         embed = build_embedding(
@@ -172,6 +176,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
         input_style = get_effective_input_style(guild_id)
         delimiter = get_effective_delimiter(guild_id)
         save_dir = get_effective_save_directory(guild_id)
+        ladder_file = get_effective_ladder_file(guild_id)
 
         errors = validate_run_ladder(self.matches.value, input_style, delimiter)
         if errors:
@@ -213,6 +218,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
                 result=result,
                 comments=user_comment,
                 save_dir=save_dir,
+                file_name=ladder_file
             )
 
         await interaction.response.send_message(
