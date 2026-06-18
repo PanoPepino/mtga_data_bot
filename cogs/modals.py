@@ -7,15 +7,23 @@ from utils.parse_and_check import (
     validate_runs_metagame,
     validate_run_ladder,
     parse_match_line,
-    get_placeholder)
+    get_placeholder,
+)
+
+# Guild-aware getters — each returns the per-server override if set,
+# otherwise falls back to the global value in config.py.
+from utils.guild_settings import (
+    get_effective_input_style,
+    get_effective_delimiter,
+    get_effective_save_directory,
+)
 
 from config import (
-    DELIMITER,
     MAX_COMMENT_LENGTH,
     MAX_DECK_LENGTH,
     MAX_MATCHES_LENGTH,
     COLOR_NORMAL,
-    INPUT_STYLE)
+)
 
 from cogs.storage import save_metagame_match, save_ladder_match
 
@@ -33,15 +41,17 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
         max_length=MAX_DECK_LENGTH,
     )
 
-    # All runs in one box — player uses Run 1: / Run 2: headers
+    # All runs in one text box — player uses Run 1: / Run 2: headers.
+    # Placeholder is built at class-definition time using the global config default.
+    # The actual parsing inside on_submit uses the guild-specific style instead.
     runs_input = discord.ui.TextInput(
         label="Your runs  (No need to write run result like 7-0. It is built automatically!)",
         style=discord.TextStyle.paragraph,
-        placeholder=f"Run 1:\n{get_placeholder(INPUT_STYLE)}\n\nRun 2:\n{get_placeholder(INPUT_STYLE)}",
+        placeholder="Run 1:\n<deck> vs <result>\n\nRun 2:\n<deck> vs <result>",
         max_length=MAX_MATCHES_LENGTH,
     )
 
-    # Optional comments for the whole session
+    # Optional free-text notes for the whole session
     comments = discord.ui.TextInput(
         label="Comments (optional)",
         style=discord.TextStyle.paragraph,
@@ -51,62 +61,70 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
     )
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Resolve per-guild settings at submit time so we always use the
+        # latest values, even if an admin changed them after the modal opened.
+        guild_id = interaction.guild_id
+        input_style = get_effective_input_style(guild_id)
+        delimiter = get_effective_delimiter(guild_id)
+        save_dir = get_effective_save_directory(guild_id)
 
         # parse_runs splits the text into a list of runs,
-        # each run being a list of (opponent, result) tuples
-        runs = parse_runs(self.runs_input.value, INPUT_STYLE)
+        # each run being a list of (opponent_deck, result) tuples.
+        runs = parse_runs(self.runs_input.value, input_style)
 
-        # Check formatting before submission
-        # If not valid, do not post and tell user with a private message
-        errors = validate_runs_metagame(runs, self.runs_input.value, INPUT_STYLE)
+        # Validate formatting before accepting submission.
+        # If invalid, respond privately and abort.
+        errors = validate_runs_metagame(runs, self.runs_input.value, input_style)
         if errors:
             msg = (
                 "\u274c I cannot parse your runs \u274c\n"
                 "Required format:\n"
-                f"```Run 1:\n{get_placeholder(INPUT_STYLE)}\netc.\n\n"
-                f"Run 2:\n{get_placeholder(INPUT_STYLE)}"
+                f"```Run 1:\n{get_placeholder(input_style)}\netc.\n\n"
+                f"Run 2:\n{get_placeholder(input_style)}"
                 "```"
             )
             await interaction.response.send_message(msg, ephemeral=True)
             return
 
-        # If everything ok, private message with validation of submission
+        # Acknowledge submission privately
         await interaction.response.send_message(
             f"\u2705 {len(runs)} run(s) logged!", ephemeral=True
         )
 
-        # Convert introduced data to dictionaries for easy storage and posting
+        # Convert runs to dicts for display in the embed
         session_runs = []
         for i, run in enumerate(runs):
-            # Reconstruct match text from parsed tuples for display depending on the input style
-            if INPUT_STYLE == "deck_delimiter_result":
+            # Reconstruct the match text using the guild's delimiter and style
+            if input_style == "deck_delimiter_result":
                 matches_text = "\n".join(
-                    f"{oppo_deck}{DELIMITER}{result}" for oppo_deck, result in run
+                    f"{oppo_deck}{delimiter}{result}" for oppo_deck, result in run
                 )
-            elif INPUT_STYLE == "result_delimiter_deck":
+            elif input_style == "result_delimiter_deck":
                 matches_text = "\n".join(
-                    f"{result}{DELIMITER}{oppo_deck}" for oppo_deck, result in run
+                    f"{result}{delimiter}{oppo_deck}" for oppo_deck, result in run
                 )
             else:
                 # Safe fallback — deck first
                 matches_text = "\n".join(
-                    f"{oppo_deck}{DELIMITER}{result}" for oppo_deck, result in run
+                    f"{oppo_deck}{delimiter}{result}" for oppo_deck, result in run
                 )
 
             session_runs.append(
                 {
                     "matches": matches_text,
+                    # Only attach the comment to the last run to avoid duplication
                     "comments": self.comments.value if i == len(runs) - 1 else "",
                 }
             )
 
-        # Save data to database
+        # Persist every match row to the correct guild CSV
         user_name = interaction.user.display_name
         user_deck = self.pilot_deck.value
         user_comment = self.comments.value
+
         for run in runs:
             run_result = summarise_run_record(run)
-            for oppo_deck, result in run:  # Each new row is a new row in database
+            for oppo_deck, result in run:  # Each match becomes one CSV row
                 save_metagame_match(
                     user_name=user_name,
                     user_deck=user_deck,
@@ -114,17 +132,18 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
                     oppo_deck=oppo_deck,
                     result=result,
                     comments=user_comment,
+                    save_dir=save_dir,
                 )
 
-        # The bot will post it
+        # Post the public embed to the channel
         embed = build_embedding(interaction.user, self.pilot_deck.value, session_runs)
         await interaction.followup.send(embed=embed)
 
 
 class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
     """
-    Class that operates in same terms as :class:`MetagameModal`, but allows user to upload a given run with any deck.
-    Could be useful to extract data from the ladder and get better insights to establish tier lists.
+    Collects a single ladder session for any deck.
+    Useful for extracting ladder data and building tier lists.
     """
 
     pilot_deck = discord.ui.TextInput(
@@ -136,7 +155,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
     matches = discord.ui.TextInput(
         label="Matches (one per line)",
         style=discord.TextStyle.paragraph,
-        placeholder=f"{get_placeholder(INPUT_STYLE)}",
+        placeholder="<deck> vs <result>",
         max_length=MAX_MATCHES_LENGTH,
     )
 
@@ -148,22 +167,26 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Resolve per-guild settings at submit time
+        guild_id = interaction.guild_id
+        input_style = get_effective_input_style(guild_id)
+        save_dir = get_effective_save_directory(guild_id)
 
-        # Validate the raw text
-        errors = validate_run_ladder(self.matches.value, INPUT_STYLE)
+        # Validate the raw text against the guild's current input style
+        errors = validate_run_ladder(self.matches.value, input_style)
 
         if errors:
             msg = (
                 "\u274c I cannot parse your ladder entry \u274c\n"
                 "Required format:\n"
                 "```"
-                f"{get_placeholder(INPUT_STYLE)}"
+                f"{get_placeholder(input_style)}"
                 "```"
             )
             await interaction.response.send_message(msg, ephemeral=True)
             return
 
-        # Build the private summary
+        # Build the private summary embed
         desc = build_ladder_description(
             self.pilot_deck.value,
             self.matches.value,
@@ -175,7 +198,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
             icon_url=interaction.user.display_avatar.url,
         )
 
-        # Save each match as one row in the ladder CSV
+        # Save each match line as one row in the guild's ladder CSV
         user_name = interaction.user.display_name
         user_deck = self.pilot_deck.value
         user_comment = self.comments.value
@@ -185,7 +208,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
             if not line:
                 continue
 
-            parsed = parse_match_line(line, INPUT_STYLE)
+            parsed = parse_match_line(line, input_style)
             if parsed is None:
                 continue
 
@@ -196,9 +219,10 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
                 oppo_deck=oppo_deck,
                 result=result,
                 comments=user_comment,
+                save_dir=save_dir,
             )
 
-        # Single ephemeral response visible only to the user
+        # Respond privately — ladder runs are not posted publicly
         await interaction.response.send_message(
             content="\u2705 Ladder run logged (private).",
             embed=embed,
