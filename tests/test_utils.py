@@ -37,6 +37,7 @@ def test_parse_match_line_invalid_structure(line, input_style, delimiter):
 
 
 def test_parse_match_line_bad_result_is_parsed_but_invalid_later():
+    """parse_match_line only splits — result validation is done by validate_*."""
     parsed = parse_match_line("GB Lands vs win", "deck_delimiter_result", " vs ")
     assert parsed == ("GB Lands", "win")
 
@@ -141,6 +142,31 @@ def test_validate_run_ladder_invalid_bad_result():
     assert errors != []
 
 
+def test_build_ladder_description_basic():
+    from utils.parse_and_check import build_ladder_description
+
+    desc = build_ladder_description(
+        "Izzet Tempo",
+        "GB Lands vs 2-1\nW Stompy vs 0-2",
+        "",
+    )
+    assert "**deck:** Izzet Tempo" in desc
+    assert "GB Lands vs 2-1" in desc
+    assert "W Stompy vs 0-2" in desc
+    assert "comments" not in desc.lower()
+
+
+def test_build_ladder_description_with_comments():
+    from utils.parse_and_check import build_ladder_description
+
+    desc = build_ladder_description(
+        "Izzet Tempo",
+        "GB Lands vs 2-1",
+        "felt great",
+    )
+    assert "*comments: felt great*" in desc
+
+
 def test_summarise_run_record_all_wins():
     run = [("Deck A", "2-1"), ("Deck B", "2-0"), ("Deck C", "2-1")]
     assert summarise_run_record(run) == "3-0"
@@ -192,10 +218,12 @@ def test_trophy_fails_wrong_count():
 @pytest.mark.parametrize(
     "input_style,delimiter,expected",
     [
+        # deck_delimiter_result: GB Lands{sep}2-1 / W Stompy{sep}0-2
         ("deck_delimiter_result", " vs ", "GB Lands vs 2-1\nW Stompy vs 0-2"),
+        ("deck_delimiter_result", " - ",  "GB Lands - 2-1\nW Stompy - 0-2"),
+        # result_delimiter_deck: 2-1{sep}GB Lands / 0-2{sep}R Stompy
         ("result_delimiter_deck", " vs ", "2-1 vs GB Lands\n0-2 vs R Stompy"),
-        ("deck_delimiter_result", " - ", "GB Lands - 2-1\nW Stompy - 0-2"),
-        ("result_delimiter_deck", " | ", "2-1 | GB Lands\n0-2 | R Stompy"),
+        ("result_delimiter_deck", " | ",  "2-1 | GB Lands\n0-2 | R Stompy"),
     ],
 )
 def test_get_placeholder(input_style, delimiter, expected):
