@@ -35,7 +35,6 @@ def parse_match_line(
     input_style: controls which side is the deck and which is the result.
     Returns None if the line cannot be parsed.
     """
-    # Use the guild's delimiter if provided, otherwise fall back to config default.
     sep = delimiter if delimiter is not None else "-"
 
     line = line.strip()
@@ -45,7 +44,6 @@ def parse_match_line(
         return None
 
     if input_style == "deck_delimiter_result":
-        # Format: <deck> <sep> <result>
         parts = line.rsplit(sep, 1)
         if len(parts) != 2:
             return None
@@ -53,7 +51,6 @@ def parse_match_line(
         return oppo_deck.strip(), result.strip()
 
     if input_style == "result_delimiter_deck":
-        # Format: <result> <sep> <deck>
         parts = line.split(sep, 1)
         if len(parts) != 2:
             return None
@@ -102,7 +99,6 @@ def parse_runs(
         line = line.strip()
         if not line:
             continue
-        # A line like "Run 1:" marks the start of a new run block.
         if line.lower().startswith("run") and line.endswith(":"):
             if current_run:
                 runs.append(current_run)
@@ -112,7 +108,6 @@ def parse_runs(
             if parsed is not None:
                 current_run.append(parsed)
             else:
-                # Keep invalid lines so validation can report them.
                 current_run.append((line, "?"))
 
     if current_run:
@@ -129,13 +124,6 @@ def validate_runs_metagame(
     """
     Validate parsed metagame runs. Returns a list of error strings.
     An empty list means everything is valid.
-
-    Rules:
-    - At least one 'Run N:' header must be present.
-    - Each run has at most TROPHY_WIN_COUNT (7) matches.
-    - No commas — each match on its own line.
-    - Each line follows the configured input style.
-    - Each result is in N-N format.
     """
     errors = []
 
@@ -160,7 +148,7 @@ def validate_runs_metagame(
 
         if len(run) > TROPHY_WIN_COUNT:
             errors.append(
-                f"Run {i} has {len(run)} matches — maximum is {TROPHY_WIN_COUNT}. "
+                f"Run {i} has {len(run)} matches \u2014 maximum is {TROPHY_WIN_COUNT}. "
                 f"Each run in a Metagame Challenge ends at 7 wins or 3 losses."
             )
 
@@ -187,11 +175,6 @@ def validate_run_ladder(
     """
     Validate a ladder entry. Returns a list of error strings.
     An empty list means everything is valid.
-
-    Rules:
-    - Each match on its own line (no commas).
-    - Each line follows the configured input style and delimiter.
-    - Each result is in W-L format.
     """
     errors: list[str] = []
 
@@ -243,6 +226,25 @@ def summarise_run_record(matches: list[tuple[str, str]]) -> str:
 def check_trophy(matches: list[tuple[str, str]]) -> bool:
     """Return True if the run is a 7-0 trophy."""
     return summarise_run_record(matches) == "7-0"
+
+
+def build_ladder_description(
+    pilot_deck: str,
+    matches_text: str,
+    comments: str,
+) -> str:
+    """Build a plain-text description for a ladder submission.
+
+    Always includes deck name and match lines.
+    Appends italicised comments line only when comments is non-empty.
+    """
+    lines = [
+        f"**deck:** {pilot_deck}",
+        matches_text.strip(),
+    ]
+    if comments.strip():
+        lines.append(f"*comments: {comments.strip()}*")
+    return "\n".join(lines)
 
 
 def build_placeholder_deck_delimiter_result(delimiter: str) -> str:

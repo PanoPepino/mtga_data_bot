@@ -1,6 +1,7 @@
 import pytest
 
 from utils.parse_and_check import (
+    build_ladder_description,
     check_trophy,
     get_placeholder,
     parse_match_line,
@@ -37,7 +38,7 @@ def test_parse_match_line_invalid_structure(line, input_style, delimiter):
 
 
 def test_parse_match_line_bad_result_is_parsed_but_invalid_later():
-    """parse_match_line only splits — result validation is done by validate_*."""
+    """parse_match_line only splits -- result validation is done by validate_*."""
     parsed = parse_match_line("GB Lands vs win", "deck_delimiter_result", " vs ")
     assert parsed == ("GB Lands", "win")
 
@@ -143,8 +144,6 @@ def test_validate_run_ladder_invalid_bad_result():
 
 
 def test_build_ladder_description_basic():
-    from utils.parse_and_check import build_ladder_description
-
     desc = build_ladder_description(
         "Izzet Tempo",
         "GB Lands vs 2-1\nW Stompy vs 0-2",
@@ -157,8 +156,6 @@ def test_build_ladder_description_basic():
 
 
 def test_build_ladder_description_with_comments():
-    from utils.parse_and_check import build_ladder_description
-
     desc = build_ladder_description(
         "Izzet Tempo",
         "GB Lands vs 2-1",
