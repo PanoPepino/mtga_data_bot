@@ -4,7 +4,11 @@ from discord.ext import commands
 
 # Guild-aware channel lookup — reads from data/guild_settings.json,
 # falls back to config.py if no override is set for this server.
-from utils.guild_settings import get_effective_allowed_channel, get_effective_input_style
+from utils.guild_settings import (
+    get_effective_allowed_channel,
+    get_effective_input_style,
+    get_effective_delimiter,
+)
 
 from cogs.modals import MetagameModal, LadderModal
 
@@ -37,7 +41,8 @@ class MTGADataBot(commands.Cog):
             return
 
         input_style = get_effective_input_style(interaction.guild.id)
-        await interaction.response.send_modal(MetagameModal(input_style=input_style))
+        delimiter = get_effective_delimiter(interaction.guild.id)
+        await interaction.response.send_modal(MetagameModal(input_style=input_style, delimiter=delimiter))
 
     @app_commands.command(name="ladder", description="Log your Ladder Run")
     async def cmd_ladder(self, interaction: discord.Interaction):
@@ -52,7 +57,9 @@ class MTGADataBot(commands.Cog):
             )
             return
 
-        await interaction.response.send_modal(LadderModal())
+        input_style = get_effective_input_style(interaction.guild.id)
+        delimiter = get_effective_delimiter(interaction.guild.id)
+        await interaction.response.send_modal(LadderModal(input_style=input_style, delimiter=delimiter))
 
 
 async def setup(bot: commands.Bot):
