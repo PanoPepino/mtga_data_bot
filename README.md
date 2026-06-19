@@ -1,30 +1,10 @@
-# mtga_data_bot
+# MTGA DataBot
 
-A Discord bot for collecting MTG Arena match data from multiple servers and storing it as CSV files for later analysis.
-
----
-
-## Requirements
-
-- Python 3.11+
-- A Discord bot token ([Discord Developer Portal](https://discord.com/developers/applications))
-- The bot must have the **applications.commands** and **bot** scopes, with **Send Messages** and **Attach Files** permissions
+A Discord bot for collecting MTG Arena data from Metagame and Ladder matches (in any format). Data is stored as CSV files for later competitive analysis.
 
 ---
 
-## Setup
 
-```bash
-git clone https://github.com/PanoPepino/mtga_data_bot.git
-cd mtga_data_bot
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env               # then edit .env with your values
-python bot.py
-```
-
----
 
 ## Environment variables
 
@@ -66,45 +46,5 @@ Two CSV files are created per server:
 
 File names and save paths can be overridden per server with `/settings`.
 
----
 
-## Project structure
 
-```
-mtga_data_bot/
-├── bot.py                  # Entry point and cog loader
-├── config.py               # Shared constants
-├── .env.example            # Environment variable template
-├── requirements.txt
-├── pyproject.toml
-├── cogs/
-│   ├── gameplay.py         # /challenge and /ladder commands
-│   ├── settings.py         # /settings commands
-│   ├── export.py           # /export command
-│   ├── modals.py           # Discord UI modals
-│   └── embedding.py        # Discord embed builders
-├── services/
-│   ├── storage.py          # CSV read/write (no Discord dependency)
-│   └── parser_service.py   # Match parsing re-exports
-├── utils/
-│   ├── guild_settings.py   # Per-server config helpers
-│   └── parse_and_check.py  # Match parsing and validation
-└── data/
-    ├── guild_settings.json
-    └── guilds/<guild_id>/   # One folder per Discord server
-```
-
----
-
-## Deploying to a cloud host
-
-1. Set `COMMAND_SYNC_MODE=global` and `DISCORD_TOKEN` as environment variables on the host.
-2. Do **not** set `DISCORD_GUILD_ID` in production.
-3. Make sure the `data/` folder is on a persistent volume — match CSVs are written there at runtime.
-4. The bot starts with `python bot.py`.
-
----
-
-## Local development
-
-Set `COMMAND_SYNC_MODE=guild` and `DISCORD_GUILD_ID=<your_test_server_id>` in `.env`. Slash commands will register instantly in that server every time the bot restarts, instead of waiting for Discord’s global propagation delay.
