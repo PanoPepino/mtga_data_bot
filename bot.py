@@ -36,6 +36,12 @@ async def main():
             print(f"❌ Failed to load cogs.settings: {e}")
 
         try:
+            await bot.load_extension("cogs.export")
+            print("✅ Export cog loaded")
+        except Exception as e:
+            print(f"❌ Failed to load cogs.export: {e}")
+
+        try:
             synced = await bot.tree.sync()
             print(f"✅ Synced {len(synced)} command(s) globally")
         except Exception as e:
