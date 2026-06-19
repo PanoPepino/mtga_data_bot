@@ -16,15 +16,5 @@
     "input_style": "result_delimiter_deck",
     "delimiter": ";",
     "save_location_key": "shared"
-  },
-  "1515970497974632558": {
-    "allowed_channels": {
-      "challenge": 1515970497974632561,
-      "ladder": 1515989671631519754
-    },
-    "input_style": "result_delimiter_deck",
-    "delimiter": " vs ",
-    "save_location_key": "server_specific",
-    "challenge_file": "2026_challenge_july.csv"
   }
 }
