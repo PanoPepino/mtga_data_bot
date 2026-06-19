@@ -24,16 +24,29 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    # Sync happens in main() after all cogs are loaded.
-    # on_ready() is intentionally kept minimal.
+    # application_id is guaranteed to exist here — safe to sync.
     print(f"Logged in as {bot.user}")
+    try:
+        if SYNC_MODE == "guild":
+            if not GUILD_ID_RAW:
+                raise RuntimeError(
+                    "DISCORD_GUILD_ID must be set in .env when "
+                    "COMMAND_SYNC_MODE=guild"
+                )
+            guild = discord.Object(id=int(GUILD_ID_RAW))
+            bot.tree.copy_global_to(guild=guild)
+            synced = await bot.tree.sync(guild=guild)
+            print(f"✅ Synced {len(synced)} command(s) to guild {GUILD_ID_RAW} (dev mode)")
+        else:
+            synced = await bot.tree.sync()
+            print(f"✅ Synced {len(synced)} command(s) globally (production mode)")
+    except Exception as e:
+        print(f"❌ Sync failed: {e}")
 
 
 async def main():
     async with bot:
-        # ---------------------------------------------------------------
-        # Load cogs
-        # ---------------------------------------------------------------
+        # Load all cogs before connecting — sync happens in on_ready()
         for extension, label in [
             ("cogs.cog",      "Main cog"),
             ("cogs.settings", "Settings cog"),
@@ -44,26 +57,6 @@ async def main():
                 print(f"✅ {label} loaded")
             except Exception as e:
                 print(f"❌ Failed to load {extension}: {e}")
-
-        # ---------------------------------------------------------------
-        # Sync commands — once, after every cog is registered
-        # ---------------------------------------------------------------
-        try:
-            if SYNC_MODE == "guild":
-                if not GUILD_ID_RAW:
-                    raise RuntimeError(
-                        "DISCORD_GUILD_ID must be set in .env when "
-                        "COMMAND_SYNC_MODE=guild"
-                    )
-                guild = discord.Object(id=int(GUILD_ID_RAW))
-                bot.tree.copy_global_to(guild=guild)
-                synced = await bot.tree.sync(guild=guild)
-                print(f"✅ Synced {len(synced)} command(s) to guild {GUILD_ID_RAW} (dev mode)")
-            else:
-                synced = await bot.tree.sync()
-                print(f"✅ Synced {len(synced)} command(s) globally (production mode)")
-        except Exception as e:
-            print(f"❌ Sync failed: {e}")
 
         await bot.start(os.getenv("DISCORD_TOKEN"))
 
