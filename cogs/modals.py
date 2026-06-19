@@ -25,7 +25,8 @@ from config import (
     COLOR_NORMAL,
 )
 
-from cogs.storage import save_metagame_match, save_ladder_match
+# Storage imported from services — cogs.storage kept for backwards compatibility
+from services.storage import save_metagame_match, save_ladder_match
 
 
 class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"):
@@ -76,7 +77,7 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
         errors = validate_runs_metagame(runs, self.runs_input.value, input_style)
         if errors:
             msg = (
-                "❌ I cannot parse your runs ❌\n"
+                "\u274c I cannot parse your runs \u274c\n"
                 "Required format:\n"
                 f"```Run 1:\n{get_placeholder(input_style, delimiter)}\netc.\n\n"
                 f"Run 2:\n{get_placeholder(input_style, delimiter)}```"
@@ -131,7 +132,7 @@ class MetagameModal(discord.ui.Modal, title="Log your Metagame Challenge Run(s)"
         )
 
         await interaction.response.send_message(
-            f"✅ {len(runs)} run(s) logged!", ephemeral=True
+            f"\u2705 {len(runs)} run(s) logged!", ephemeral=True
         )
         await interaction.followup.send(embed=embed)
 
@@ -181,7 +182,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
         errors = validate_run_ladder(self.matches.value, input_style, delimiter)
         if errors:
             msg = (
-                "❌ I cannot parse your ladder entry ❌\n"
+                "\u274c I cannot parse your ladder entry \u274c\n"
                 "Required format:\n"
                 f"```{get_placeholder(input_style, delimiter)}```"
             )
@@ -222,7 +223,7 @@ class LadderModal(discord.ui.Modal, title="Log your Ladder run"):
             )
 
         await interaction.response.send_message(
-            content="✅ Ladder run logged (private).",
+            content="\u2705 Ladder run logged (private).",
             embed=embed,
             ephemeral=True,
         )

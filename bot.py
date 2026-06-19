@@ -48,9 +48,9 @@ async def main():
     async with bot:
         # Load all cogs before connecting — sync happens in on_ready()
         for extension, label in [
-            ("cogs.cog",      "Main cog"),
-            ("cogs.settings", "Settings cog"),
-            ("cogs.export",   "Export cog"),
+            ("cogs.gameplay",  "Gameplay cog"),   # /challenge  /ladder
+            ("cogs.settings",  "Settings cog"),   # /settings
+            ("cogs.export",    "Export cog"),      # /export
         ]:
             try:
                 await bot.load_extension(extension)
