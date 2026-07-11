@@ -1,5 +1,4 @@
 discord.py>=2.3
 python-dotenv
-aiohttp
 pytest
 pytest-asyncio
