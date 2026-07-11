@@ -18,6 +18,8 @@ from utils.guild_settings import (
     set_ladder_file,
 )
 
+from utils.audit import send_audit_log
+
 
 def is_server_admin():
     """Return an app_commands check that passes only for server administrators.
@@ -38,7 +40,6 @@ def is_server_admin():
         return (
             interaction.guild.owner_id == user.id
             or user.guild_permissions.administrator
-            or user.guild_permissions.manage_guild
         )
 
     return app_commands.check(predicate)
@@ -160,15 +161,6 @@ class SettingsCog(commands.Cog):
         mode: app_commands.Choice[str],
         channel: discord.TextChannel,
     ) -> None:
-        """Restrict a bot mode (/challenge or /ladder) to a single text channel.
-
-        After this is set, users who invoke the command outside that channel
-        receive a polite redirect message.
-
-        Args:
-            mode:    The mode to restrict ("challenge" or "ladder").
-            channel: The Discord text channel to allow.
-        """
         if interaction.guild is None:
             await interaction.response.send_message(
                 "This command can only be used in a server.",
@@ -176,7 +168,16 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        set_allowed_channel(interaction.guild.id, mode.value, channel.id)
+        try:
+            set_allowed_channel(interaction.guild.id, mode.value, channel.id)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        # Send private audit log after successful change
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=set_channel mode={mode.value} channel={channel.id}"
+        )
 
         await interaction.response.send_message(
             f"The `{mode.value}` mode is now restricted to {channel.mention}.",
@@ -198,11 +199,6 @@ class SettingsCog(commands.Cog):
         interaction: discord.Interaction,
         mode: app_commands.Choice[str],
     ) -> None:
-        """Remove the channel restriction for a mode, allowing use in any channel.
-
-        Args:
-            mode: The mode to unrestrict ("challenge" or "ladder").
-        """
         if interaction.guild is None:
             await interaction.response.send_message(
                 "This command can only be used in a server.",
@@ -210,14 +206,22 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        set_allowed_channel(interaction.guild.id, mode.value, None)
+        try:
+            set_allowed_channel(interaction.guild.id, mode.value, None)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=clear_channel mode={mode.value}"
+        )
 
         await interaction.response.send_message(
             f"The `{mode.value}` mode is no longer restricted to one channel.",
             ephemeral=True,
         )
 
-    # -----------------------------------------------------------------------
+     # -----------------------------------------------------------------------
     # Input style / delimiter
     # -----------------------------------------------------------------------
 
@@ -264,8 +268,16 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        set_input_style(interaction.guild.id, style.value)
-        set_delimiter(interaction.guild.id, delimiter.value)
+        try:
+            set_input_style(interaction.guild.id, style.value)
+            set_delimiter(interaction.guild.id, delimiter.value)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=set_input_style style={style.value} delimiter={delimiter.value}"
+        )
 
         await interaction.response.send_message(
             f"Input style set to `{style.value}` and delimiter set to `{delimiter.value}`.",
@@ -284,8 +296,16 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        set_input_style(interaction.guild.id, None)
-        set_delimiter(interaction.guild.id, None)
+        try:
+            set_input_style(interaction.guild.id, None)
+            set_delimiter(interaction.guild.id, None)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=reset_input_style"
+        )
 
         await interaction.response.send_message(
             "Input style and delimiter reset to defaults.",
@@ -312,15 +332,6 @@ class SettingsCog(commands.Cog):
         interaction: discord.Interaction,
         location: app_commands.Choice[str],
     ) -> None:
-        """Choose the directory policy used when saving match CSV files for this server.
-
-        The resolved directory is shown in the confirmation message so the
-        admin can verify the path before any data is written there.
-
-        Args:
-            location: A key from config.SAVE_LOCATION_MAP
-                      ("server_specific", "shared", or "archive").
-        """
         if interaction.guild is None:
             await interaction.response.send_message(
                 "This command can only be used in a server.",
@@ -328,15 +339,17 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        if location.value not in config.SAVE_LOCATION_MAP:
-            await interaction.response.send_message(
-                "That save location is not available.",
-                ephemeral=True,
-            )
+        try:
+            set_save_location_key(interaction.guild.id, location.value)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
             return
 
-        set_save_location_key(interaction.guild.id, location.value)
         save_dir = get_effective_save_directory(interaction.guild.id)
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=set_save_location location={location.value} resolved_dir={save_dir}"
+        )
 
         await interaction.response.send_message(
             f"Save location set to `{location.value}`.\nResolved directory: `{save_dir}`",
@@ -347,7 +360,6 @@ class SettingsCog(commands.Cog):
     @app_commands.default_permissions(manage_guild=True)
     @is_server_admin()
     async def reset_save_location(self, interaction: discord.Interaction) -> None:
-        """Reset the save-location policy to the value defined in config.py."""
         if interaction.guild is None:
             await interaction.response.send_message(
                 "This command can only be used in a server.",
@@ -355,7 +367,15 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        set_save_location_key(interaction.guild.id, None)
+        try:
+            set_save_location_key(interaction.guild.id, None)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=reset_save_location"
+        )
 
         await interaction.response.send_message(
             "Save location reset to default.",
@@ -400,10 +420,20 @@ class SettingsCog(commands.Cog):
             await interaction.response.send_message(error, ephemeral=True)
             return
 
-        set_challenge_file(interaction.guild.id, filename.strip())
+        safe_filename = filename.strip()
+
+        try:
+            set_challenge_file(interaction.guild.id, safe_filename)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=set_challenge_file file={safe_filename}"
+        )
 
         await interaction.response.send_message(
-            f"Challenge CSV file set to `{filename.strip()}`.\n"
+            f"Challenge CSV file set to `{safe_filename}`.\n"
             "The file will be created automatically on the first submission.",
             ephemeral=True,
         )
@@ -442,10 +472,20 @@ class SettingsCog(commands.Cog):
             await interaction.response.send_message(error, ephemeral=True)
             return
 
-        set_ladder_file(interaction.guild.id, filename.strip())
+        safe_filename = filename.strip()
+
+        try:
+            set_ladder_file(interaction.guild.id, safe_filename)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=set_ladder_file file={safe_filename}"
+        )
 
         await interaction.response.send_message(
-            f"Ladder CSV file set to `{filename.strip()}`.\n"
+            f"Ladder CSV file set to `{safe_filename}`.\n"
             "The file will be created automatically on the first submission.",
             ephemeral=True,
         )
@@ -465,7 +505,15 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        set_challenge_file(interaction.guild.id, None)
+        try:
+            set_challenge_file(interaction.guild.id, None)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=reset_challenge_file"
+        )
 
         await interaction.response.send_message(
             "Challenge CSV filename reset to default.",
@@ -487,18 +535,52 @@ class SettingsCog(commands.Cog):
             )
             return
 
-        set_ladder_file(interaction.guild.id, None)
+        try:
+            set_ladder_file(interaction.guild.id, None)
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        await send_audit_log(
+            f"[SETTINGS] guild={interaction.guild.id} admin={interaction.user.id} action=reset_ladder_file"
+        )
 
         await interaction.response.send_message(
             "Ladder CSV filename reset to default.",
             ephemeral=True,
         )
 
+    # If user not admin tries to use it, returns ephemeral private error.
+    @show.error
+    @set_channel.error
+    @clear_channel.error
+    @set_input_style.error
+    @reset_input_style_cmd.error
+    @set_save_location.error
+    @reset_save_location.error
+    @set_challenge_file_cmd.error
+    @set_ladder_file_cmd.error
+    @reset_challenge_file_cmd.error
+    @reset_ladder_file_cmd.error
+    async def settings_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        # Permission failure
+        if isinstance(error, app_commands.errors.CheckFailure):
+            if interaction.response.is_done():
+                await interaction.followup.send("Admin only.", ephemeral=True)
+            else:
+                await interaction.response.send_message("Admin only.", ephemeral=True)
+            return
 
-async def setup(bot: commands.Bot) -> None:
-    """Register the SettingsCog with the bot. Called automatically by bot.load_extension.
+        # Validation failure from setter helpers
+        if isinstance(error, app_commands.errors.CommandInvokeError) and isinstance(error.original, ValueError):
+            if interaction.response.is_done():
+                await interaction.followup.send(str(error.original), ephemeral=True)
+            else:
+                await interaction.response.send_message(str(error.original), ephemeral=True)
+            return
 
-    Args:
-        bot: The running discord.py Bot instance.
-    """
-    await bot.add_cog(SettingsCog(bot))
+        raise error

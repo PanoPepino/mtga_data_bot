@@ -1,12 +1,39 @@
-.env
-.venv/
-.vscode/
-.DS_Store
+# Bytecode and caches
 __pycache__/
-*.pyc
-data/guilds/
-data/shared/
-data/archive/
-.pytest_cache/
+*.py[cod]
+*$py.class
+
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs / editors
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+icon_data_bot

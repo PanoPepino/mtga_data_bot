@@ -16,6 +16,11 @@ MAX_MATCHES_LENGTH = 700
 MAX_DECK_LENGTH = 80
 MAX_COMMENT_LENGTH = 300
 
+# How many users same time can call bot
+GUILD_ACTIVE_LIMIT = 5
+# Cooldown in seconds for one user submitting modal again
+USER_SUBMIT_COOLDOWN = 8.0
+
 
 # Trophy condition
 TROPHY_WIN_COUNT = 7
@@ -43,5 +48,15 @@ LADDER_FILE = 'ladder_2026_06.csv'
 CHALLENGE_FILE = 'challenge_2026_07.csv'
 
 
-# Ladder 1515989671631519754
-# challenge 1515970497974632561
+import os
+
+def _parse_guild_ids(value: str) -> set[int]:
+    if not value:
+        return set()
+    return {
+        int(x.strip())
+        for x in value.split(",")
+        if x.strip().isdigit()
+    }
+
+ALLOWED_GUILD_IDS = _parse_guild_ids(os.getenv("ALLOWED_GUILD_IDS", ""))

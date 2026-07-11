@@ -10,12 +10,17 @@
 #     You should never need to edit the JSON file manually.
 
 import json
+import threading
 from pathlib import Path
 
 import config
 
+
 # Path to the JSON file that stores all per-guild settings.
 SETTINGS_FILE = Path("data/guild_settings.json")
+
+# In-process lock for safe concurrent reads/writes.
+_SETTINGS_LOCK = threading.Lock()
 
 
 def _new_guild_settings() -> dict:
@@ -46,6 +51,7 @@ def _new_guild_settings() -> dict:
 # Low-level read / write helpers
 # ---------------------------------------------------------------------------
 
+
 def load_all_settings() -> dict:
     """Load the full guild settings JSON file into a dict.
 
@@ -53,10 +59,17 @@ def load_all_settings() -> dict:
         dict: Mapping of guild_id (str) -> settings dict.
               Returns an empty dict if the file does not exist yet.
     """
-    if not SETTINGS_FILE.exists():
-        return {}
-    with SETTINGS_FILE.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    with _SETTINGS_LOCK:
+        if not SETTINGS_FILE.exists():
+            return {}
+
+        try:
+            with SETTINGS_FILE.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
+
+        return data if isinstance(data, dict) else {}
 
 
 def save_all_settings(data: dict) -> None:
@@ -67,9 +80,15 @@ def save_all_settings(data: dict) -> None:
     Args:
         data: The complete settings mapping to persist.
     """
-    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with SETTINGS_FILE.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    with _SETTINGS_LOCK:
+        SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write atomically: temp file first, then replace.
+        temp_file = SETTINGS_FILE.with_suffix(".tmp")
+        with temp_file.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+        temp_file.replace(SETTINGS_FILE)
 
 
 def ensure_guild_entry(guild_id: int) -> None:
@@ -81,11 +100,26 @@ def ensure_guild_entry(guild_id: int) -> None:
     Args:
         guild_id: The Discord guild (server) ID.
     """
-    data = load_all_settings()
-    guild_key = str(guild_id)
-    if guild_key not in data:
-        data[guild_key] = _new_guild_settings()
-        save_all_settings(data)
+    with _SETTINGS_LOCK:
+        data = {}
+        if SETTINGS_FILE.exists():
+            try:
+                with SETTINGS_FILE.open("r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        data = loaded
+            except (json.JSONDecodeError, OSError):
+                data = {}
+
+        guild_key = str(guild_id)
+        if guild_key not in data:
+            data[guild_key] = _new_guild_settings()
+
+            SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            temp_file = SETTINGS_FILE.with_suffix(".tmp")
+            with temp_file.open("w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            temp_file.replace(SETTINGS_FILE)
 
 
 def get_guild_settings(guild_id: int) -> dict:
@@ -103,7 +137,8 @@ def get_guild_settings(guild_id: int) -> dict:
     """
     ensure_guild_entry(guild_id)
     data = load_all_settings()
-    stored = data[str(guild_id)]
+    stored = data.get(str(guild_id), _new_guild_settings())
+
     return {
         "allowed_channels": {
             "challenge": stored.get("allowed_channels", {}).get("challenge"),
@@ -121,6 +156,7 @@ def get_guild_settings(guild_id: int) -> dict:
 # Setters — called by /settings commands in cogs/settings.py
 # ---------------------------------------------------------------------------
 
+
 def set_allowed_channel(guild_id: int, mode: str, channel_id: int | None) -> None:
     """Set or clear the allowed channel for a given mode in this guild.
 
@@ -129,12 +165,16 @@ def set_allowed_channel(guild_id: int, mode: str, channel_id: int | None) -> Non
         mode:       Either "challenge" or "ladder".
         channel_id: The channel ID to restrict to, or None to remove the restriction.
     """
-    data = load_all_settings()
-    guild_key = str(guild_id)
-    if guild_key not in data:
-        data[guild_key] = _new_guild_settings()
-    data[guild_key]["allowed_channels"][mode] = channel_id
-    save_all_settings(data)
+    if mode not in {"challenge", "ladder"}:
+        raise ValueError("Mode must be 'challenge' or 'ladder'.")
+
+    with _SETTINGS_LOCK:
+        data = load_all_settings_unlocked()
+        guild_key = str(guild_id)
+        if guild_key not in data:
+            data[guild_key] = _new_guild_settings()
+        data[guild_key]["allowed_channels"][mode] = channel_id
+        save_all_settings_unlocked(data)
 
 
 def set_input_style(guild_id: int, input_style: str | None) -> None:
@@ -145,12 +185,13 @@ def set_input_style(guild_id: int, input_style: str | None) -> None:
         input_style: One of the INPUT_STYLE values defined in config.py,
                      or None to fall back to the config default.
     """
-    data = load_all_settings()
-    guild_key = str(guild_id)
-    if guild_key not in data:
-        data[guild_key] = _new_guild_settings()
-    data[guild_key]["input_style"] = input_style
-    save_all_settings(data)
+    with _SETTINGS_LOCK:
+        data = load_all_settings_unlocked()
+        guild_key = str(guild_id)
+        if guild_key not in data:
+            data[guild_key] = _new_guild_settings()
+        data[guild_key]["input_style"] = input_style
+        save_all_settings_unlocked(data)
 
 
 def set_delimiter(guild_id: int, delimiter: str | None) -> None:
@@ -160,12 +201,13 @@ def set_delimiter(guild_id: int, delimiter: str | None) -> None:
         guild_id:  The Discord guild (server) ID.
         delimiter: The separator string (e.g. " vs "), or None to use config default.
     """
-    data = load_all_settings()
-    guild_key = str(guild_id)
-    if guild_key not in data:
-        data[guild_key] = _new_guild_settings()
-    data[guild_key]["delimiter"] = delimiter
-    save_all_settings(data)
+    with _SETTINGS_LOCK:
+        data = load_all_settings_unlocked()
+        guild_key = str(guild_id)
+        if guild_key not in data:
+            data[guild_key] = _new_guild_settings()
+        data[guild_key]["delimiter"] = delimiter
+        save_all_settings_unlocked(data)
 
 
 def set_save_location_key(guild_id: int, location_key: str | None) -> None:
@@ -176,12 +218,16 @@ def set_save_location_key(guild_id: int, location_key: str | None) -> None:
         location_key: A key from config.SAVE_LOCATION_MAP (e.g. "server_specific"),
                       or None to fall back to the config default.
     """
-    data = load_all_settings()
-    guild_key = str(guild_id)
-    if guild_key not in data:
-        data[guild_key] = _new_guild_settings()
-    data[guild_key]["save_location_key"] = location_key
-    save_all_settings(data)
+    if location_key is not None and location_key not in getattr(config, "SAVE_LOCATION_MAP", {}):
+        raise ValueError("Invalid save location key.")
+
+    with _SETTINGS_LOCK:
+        data = load_all_settings_unlocked()
+        guild_key = str(guild_id)
+        if guild_key not in data:
+            data[guild_key] = _new_guild_settings()
+        data[guild_key]["save_location_key"] = location_key
+        save_all_settings_unlocked(data)
 
 
 def set_challenge_file(guild_id: int, filename: str | None) -> None:
@@ -195,12 +241,13 @@ def set_challenge_file(guild_id: int, filename: str | None) -> None:
         guild_id: The Discord guild (server) ID.
         filename: A .csv filename string, or None to use the config default.
     """
-    data = load_all_settings()
-    guild_key = str(guild_id)
-    if guild_key not in data:
-        data[guild_key] = _new_guild_settings()
-    data[guild_key]["challenge_file"] = filename
-    save_all_settings(data)
+    with _SETTINGS_LOCK:
+        data = load_all_settings_unlocked()
+        guild_key = str(guild_id)
+        if guild_key not in data:
+            data[guild_key] = _new_guild_settings()
+        data[guild_key]["challenge_file"] = filename
+        save_all_settings_unlocked(data)
 
 
 def set_ladder_file(guild_id: int, filename: str | None) -> None:
@@ -214,17 +261,19 @@ def set_ladder_file(guild_id: int, filename: str | None) -> None:
         guild_id: The Discord guild (server) ID.
         filename: A .csv filename string, or None to use the config default.
     """
-    data = load_all_settings()
-    guild_key = str(guild_id)
-    if guild_key not in data:
-        data[guild_key] = _new_guild_settings()
-    data[guild_key]["ladder_file"] = filename
-    save_all_settings(data)
+    with _SETTINGS_LOCK:
+        data = load_all_settings_unlocked()
+        guild_key = str(guild_id)
+        if guild_key not in data:
+            data[guild_key] = _new_guild_settings()
+        data[guild_key]["ladder_file"] = filename
+        save_all_settings_unlocked(data)
 
 
 # ---------------------------------------------------------------------------
 # Effective getters — merge guild override with config.py fallback
 # ---------------------------------------------------------------------------
+
 
 def get_effective_allowed_channel(guild_id: int, mode: str) -> int | None:
     """Return the allowed channel ID for a mode in this guild.
@@ -243,6 +292,7 @@ def get_effective_allowed_channel(guild_id: int, mode: str) -> int | None:
     channel_id = settings["allowed_channels"].get(mode)
     if channel_id is not None:
         return channel_id
+
     fallback_map = {
         "challenge": getattr(config, "CHALLENGE_CHANNEL_ID", None),
         "ladder": getattr(config, "LADDER_CHANNEL_ID", None),
@@ -348,3 +398,31 @@ def get_effective_ladder_file(guild_id: int) -> str:
     if settings.get("ladder_file") is not None:
         return settings["ladder_file"]
     return getattr(config, "LADDER_FILE", "ladder.csv")
+
+
+# ---------------------------------------------------------------------------
+# Internal unlocked helpers — use only while holding _SETTINGS_LOCK
+# ---------------------------------------------------------------------------
+
+
+def load_all_settings_unlocked() -> dict:
+    """Load settings without acquiring the lock. Internal use only."""
+    if not SETTINGS_FILE.exists():
+        return {}
+
+    try:
+        with SETTINGS_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
+def save_all_settings_unlocked(data: dict) -> None:
+    """Save settings without acquiring the lock. Internal use only."""
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temp_file = SETTINGS_FILE.with_suffix(".tmp")
+    with temp_file.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    temp_file.replace(SETTINGS_FILE)
