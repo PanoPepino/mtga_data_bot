@@ -91,9 +91,11 @@ class SettingsCog(commands.Cog):
         """
         self.bot = bot
 
+    # This top-level Group constructor now handles UI hiding natively on Discord's side
     settings = app_commands.Group(
         name="settings",
-        description="Manage this server's bot settings (channels, input style, save locations, CSV filenames)."
+        description="Manage this server's bot settings (channels, input style, save locations, CSV filenames).",
+        default_permissions=discord.Permissions(administrator=True)  # <-- Changed here
     )
 
     # -----------------------------------------------------------------------
@@ -493,6 +495,32 @@ class SettingsCog(commands.Cog):
             "Ladder CSV filename reset to default.",
             ephemeral=True,
         )
+
+    # -----------------------------------------------------------------------
+    # Error Handler
+    # -----------------------------------------------------------------------
+
+    async def cog_app_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        """Handle permission and check errors raised by settings commands.
+
+        Catches check failures (like is_server_admin) and sends a private, 
+        polite response instead of logging error tracebacks to the console.
+        """
+        if isinstance(error, app_commands.errors.CheckFailure):
+            # If the response hasn't been sent yet, send a polite fallback
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ You do not have permission to use Settings commands. This area is restricted to administrators.",
+                    ephemeral=True
+                )
+            return
+
+        # For any other unexpected errors, let them raise and log normally
+        raise error
 
 
 async def setup(bot: commands.Bot) -> None:

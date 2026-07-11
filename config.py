@@ -43,5 +43,3 @@ LADDER_FILE = 'ladder_2026_06.csv'
 CHALLENGE_FILE = 'challenge_2026_07.csv'
 
 
-# Ladder 1515989671631519754
-# challenge 1515970497974632561
