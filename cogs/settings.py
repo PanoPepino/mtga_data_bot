@@ -584,3 +584,7 @@ class SettingsCog(commands.Cog):
             return
 
         raise error
+    
+
+    async def setup(bot):
+        await bot.add_cog(SettingsCog(bot))

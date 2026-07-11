@@ -10,27 +10,21 @@ from dotenv import load_dotenv
 from config import ALLOWED_GUILD_IDS
 from utils.audit import send_audit_log
 
-load_dotenv()  # Load values from .env
+load_dotenv()
 
-# Basic console logging for bot and error tracebacks
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
-# Command sync mode:
-# - guild  = fast sync to one test server
-# - global = production sync to all servers
 SYNC_MODE = os.getenv("COMMAND_SYNC_MODE", "global").lower()
 GUILD_ID_RAW = os.getenv("DISCORD_GUILD_ID")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Discord intents
 intents = discord.Intents.default()
 intents.message_content = True
 
-# Main bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
-# Helper: return True only for approved guilds
 async def guild_allowed(guild) -> bool:
     if guild is None:
         return False
@@ -39,7 +33,6 @@ async def guild_allowed(guild) -> bool:
     return guild.id in ALLOWED_GUILD_IDS
 
 
-# Global check for prefix commands like !ping
 @bot.check
 async def global_guild_check(ctx):
     allowed = await guild_allowed(ctx.guild)
@@ -51,7 +44,6 @@ async def global_guild_check(ctx):
     return allowed
 
 
-# Global check for slash commands like /settings
 @bot.tree.interaction_check
 async def interaction_guild_check(interaction):
     allowed = await guild_allowed(interaction.guild)
@@ -64,7 +56,6 @@ async def interaction_guild_check(interaction):
     return allowed
 
 
-# If bot joins unapproved server, leave immediately
 @bot.event
 async def on_guild_join(guild):
     if not await guild_allowed(guild):
@@ -74,13 +65,11 @@ async def on_guild_join(guild):
         await guild.leave()
 
 
-# Global error handler for slash commands
 async def on_tree_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     command_name = interaction.command.name if interaction.command else "unknown"
     guild_id = interaction.guild.id if interaction.guild else "none"
     user_id = interaction.user.id if interaction.user else "none"
 
-    # User failed permission or whitelist check
     if isinstance(error, app_commands.CheckFailure):
         await send_audit_log(
             f"[DENIED] guild={guild_id} user={user_id} action=slash_check_failure command={command_name}"
@@ -94,7 +83,6 @@ async def on_tree_error(interaction: discord.Interaction, error: app_commands.Ap
             pass
         return
 
-    # User hit cooldown
     if isinstance(error, app_commands.CommandOnCooldown):
         retry_after = max(1, int(error.retry_after))
         message = f"Cooldown active. Try again in {retry_after}s."
@@ -112,14 +100,12 @@ async def on_tree_error(interaction: discord.Interaction, error: app_commands.Ap
             pass
         return
 
-    # Log full traceback only in server console
     LOGGER.exception("Slash command failed", exc_info=error)
 
     await send_audit_log(
         f"[ERROR] guild={guild_id} user={user_id} action=slash_error command={command_name} error_type={type(error).__name__}"
     )
 
-    # Show safe generic message to user
     try:
         if interaction.response.is_done():
             await interaction.followup.send("Something failed.", ephemeral=True)
@@ -129,11 +115,9 @@ async def on_tree_error(interaction: discord.Interaction, error: app_commands.Ap
         pass
 
 
-# Register slash-command error handler
 bot.tree.on_error = on_tree_error
 
 
-# Global error handler for prefix commands
 @bot.event
 async def on_command_error(ctx, error):
     command_name = ctx.command.qualified_name if ctx.command else "unknown"
@@ -155,7 +139,6 @@ async def on_command_error(ctx, error):
     await ctx.reply("Something failed.", mention_author=False)
 
 
-# Runs when bot connects and becomes ready
 @bot.event
 async def on_ready():
     LOGGER.info(f"Logged in as {bot.user}")
@@ -168,8 +151,6 @@ async def on_ready():
                 )
 
             guild = discord.Object(id=int(GUILD_ID_RAW))
-
-            # Copy global slash commands into one test guild for fast sync
             bot.tree.copy_global_to(guild=guild)
             synced = await bot.tree.sync(guild=guild)
             LOGGER.info(f"Synced {len(synced)} command(s) to guild {GUILD_ID_RAW} (dev mode)")
@@ -178,7 +159,6 @@ async def on_ready():
                 f"[STARTUP] bot={bot.user} action=sync_success mode=guild guild={GUILD_ID_RAW} commands={len(synced)}"
             )
         else:
-            # Sync globally for production
             synced = await bot.tree.sync()
             LOGGER.info(f"Synced {len(synced)} command(s) globally (production mode)")
 
@@ -194,10 +174,11 @@ async def on_ready():
         )
 
 
-# Main startup function
 async def main():
+    if not DISCORD_TOKEN:
+        raise RuntimeError("DISCORD_TOKEN is missing from .env or environment")
+
     async with bot:
-        # Load cogs before bot connects
         for extension, label in [
             ("cogs.gameplay", "Gameplay cog"),
             ("cogs.settings", "Settings cog"),
@@ -212,11 +193,7 @@ async def main():
                     f"[ERROR] action=cog_load_failed extension={extension} error_type={type(error).__name__}"
                 )
 
-        token = os.getenv("DISCORD_TOKEN")
-        if not token:
-            raise RuntimeError("DISCORD_TOKEN is missing from .env")
-
-        await bot.start(token)
+        await bot.start(DISCORD_TOKEN)
 
 
 asyncio.run(main())
