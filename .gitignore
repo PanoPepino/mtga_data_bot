@@ -37,3 +37,5 @@ dist/
 *.egg-info/
 
 icon_data_bot
+.vscode/
+.vscode

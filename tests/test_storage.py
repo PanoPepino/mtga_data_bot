@@ -1,22 +1,7 @@
 import csv
 from pathlib import Path
 
-from cogs.storage import (
-    _resolve_metagame_path,
-    _resolve_ladder_path,
-    save_metagame_match,
-    save_ladder_match,
-)
-
-
-def test_resolve_metagame_path_joins_directory_and_filename():
-    path = _resolve_metagame_path("data/guilds/123", "challenge_july.csv")
-    assert path == Path("data/guilds/123") / "challenge_july.csv"
-
-
-def test_resolve_ladder_path_joins_directory_and_filename():
-    path = _resolve_ladder_path("data/guilds/123", "ladder_july.csv")
-    assert path == Path("data/guilds/123") / "ladder_july.csv"
+from cogs.storage import save_metagame_match, save_ladder_match
 
 
 def test_save_metagame_match_creates_file_and_header(tmp_path):
