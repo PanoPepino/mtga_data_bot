@@ -76,7 +76,7 @@ class SettingsCog(commands.Cog):
     """Cog that exposes all /settings slash commands for server administrators.
 
     Every command in this cog is protected by is_server_admin() and
-    app_commands.default_permissions(manage_guild=True), so regular users
+    app_commands.default_permissions(administrator=True), so regular users
     cannot accidentally change bot behaviour for the whole server.
 
     Attributes:
@@ -103,7 +103,8 @@ class SettingsCog(commands.Cog):
     # -----------------------------------------------------------------------
 
     @settings.command(name="show", description="Show all current bot settings for this server.")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def show(self, interaction: discord.Interaction) -> None:
         """Display all effective settings for this server in an ephemeral message.
@@ -154,7 +155,8 @@ class SettingsCog(commands.Cog):
             app_commands.Choice(name="ladder", value="ladder"),
         ]
     )
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def set_channel(
         self,
@@ -193,7 +195,7 @@ class SettingsCog(commands.Cog):
             app_commands.Choice(name="ladder", value="ladder"),
         ]
     )
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
     @is_server_admin()
     async def clear_channel(
         self,
@@ -241,7 +243,8 @@ class SettingsCog(commands.Cog):
         app_commands.Choice(name="|", value=" | "),
         app_commands.Choice(name="/", value=" / "),
     ])
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def set_input_style(
         self,
@@ -275,7 +278,8 @@ class SettingsCog(commands.Cog):
         )
 
     @settings.command(name="reset_input_style", description="Reset input style and delimiter to the config defaults.")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def reset_input_style_cmd(self, interaction: discord.Interaction) -> None:
         """Reset the input style and delimiter to the values defined in config.py."""
@@ -307,7 +311,8 @@ class SettingsCog(commands.Cog):
             app_commands.Choice(name="archive", value="archive"),
         ]
     )
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def set_save_location(
         self,
@@ -346,7 +351,8 @@ class SettingsCog(commands.Cog):
         )
 
     @settings.command(name="reset_save_location", description="Reset the save location to the config default.")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def reset_save_location(self, interaction: discord.Interaction) -> None:
         """Reset the save-location policy to the value defined in config.py."""
@@ -373,7 +379,8 @@ class SettingsCog(commands.Cog):
         description="Set the CSV filename where challenge match data is saved.",
     )
     @app_commands.describe(filename="Bare filename ending in .csv (e.g. challenge_june.csv).")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def set_challenge_file_cmd(
         self,
@@ -415,7 +422,8 @@ class SettingsCog(commands.Cog):
         description="Set the CSV filename where ladder match data is saved.",
     )
     @app_commands.describe(filename="Bare filename ending in .csv (e.g. ladder_june.csv).")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def set_ladder_file_cmd(
         self,
@@ -456,7 +464,8 @@ class SettingsCog(commands.Cog):
         name="reset_challenge_file",
         description="Reset the challenge CSV filename to the config.py default.",
     )
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def reset_challenge_file_cmd(self, interaction: discord.Interaction) -> None:
         """Reset the challenge CSV filename to the value defined in config.CHALLENGE_FILE."""
@@ -478,7 +487,8 @@ class SettingsCog(commands.Cog):
         name="reset_ladder_file",
         description="Reset the ladder CSV filename to the config.py default.",
     )
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
     async def reset_ladder_file_cmd(self, interaction: discord.Interaction) -> None:
         """Reset the ladder CSV filename to the value defined in config.LADDER_FILE."""

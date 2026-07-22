@@ -15,6 +15,8 @@ COLOR_TROPHY = 0xFFD700  # Gold
 MAX_MATCHES_LENGTH = 700
 MAX_DECK_LENGTH = 80
 MAX_COMMENT_LENGTH = 300
+COMMAND_COOLDOWN = 15 # User has to wait 15s to call the bot again. To avoid saturation
+MAX_CONCURRENT_SESSIONS= 3 # How many user can call the bot same time. To avoid saturation
 
 
 # Trophy condition

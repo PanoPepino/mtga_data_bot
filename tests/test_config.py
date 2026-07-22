@@ -3,6 +3,8 @@ from config import (
     LADDER_CHANNEL_ID,
     TROPHY_WIN_COUNT,
     MAX_DECK_LENGTH,
+    COMMAND_COOLDOWN,
+    MAX_CONCURRENT_SESSIONS
 )
 
 
@@ -20,3 +22,10 @@ def test_trophy_win_count():
 
 def test_limits_are_positive():
     assert MAX_DECK_LENGTH > 0
+
+
+def test_command_cooldown():
+    assert COMMAND_COOLDOWN == 15
+
+def test_max_sessions():
+    assert MAX_CONCURRENT_SESSIONS == 3

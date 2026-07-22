@@ -88,9 +88,10 @@ class ExportCog(commands.Cog):
     @app_commands.describe(
         file='CSV filename to export (e.g. challenge_2026_06.csv), or "all" for a full zip.'
     )
-    @app_commands.autocomplete(file=_file_autocomplete)
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @is_server_admin()
+    @app_commands.autocomplete(file=_file_autocomplete)
     async def export(
         self,
         interaction: discord.Interaction,

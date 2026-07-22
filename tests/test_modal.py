@@ -23,7 +23,7 @@ async def test_metagame_modal_passes_resolved_file_and_directory(monkeypatch):
     monkeypatch.setattr(modals, "summarise_run_record", lambda run: "1-0")
     monkeypatch.setattr(modals, "build_embedding", lambda *args, **kwargs: object())
 
-    save_mock = Mock()
+    save_mock = AsyncMock()
     monkeypatch.setattr(modals, "save_metagame_match", save_mock)
 
     interaction = types.SimpleNamespace(
@@ -65,7 +65,7 @@ async def test_ladder_modal_passes_resolved_file_and_directory(monkeypatch):
     monkeypatch.setattr(modals, "validate_run_ladder", lambda matches, style, delim: [])
     monkeypatch.setattr(modals, "parse_match_line", lambda line, style, delim: ("Gruul Aggro", "W"))
 
-    save_mock = Mock()
+    save_mock = AsyncMock()
     monkeypatch.setattr(modals, "save_ladder_match", save_mock)
 
     interaction = types.SimpleNamespace(
