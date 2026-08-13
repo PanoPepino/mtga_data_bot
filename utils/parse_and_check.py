@@ -1,6 +1,11 @@
-from config import (
-    TROPHY_WIN_COUNT,
-)
+import re
+
+from config import TROPHY_WIN_COUNT
+
+
+_RUN_HEADER_RE = re.compile(r"^run\s+\d+\s*:$", re.IGNORECASE)
+_RESULT_FIRST_RE = re.compile(r"^(\d+\s*-\s*\d+)\s+(.+)$")
+_RESULT_LAST_RE = re.compile(r"^(.+?)\s+(\d+\s*-\s*\d+)$")
 
 
 def get_placeholder(input_style: str, delimiter: str) -> str:
@@ -11,8 +16,9 @@ def get_placeholder(input_style: str, delimiter: str) -> str:
 
     if input_style == "result_delimiter_deck":
         return (
-            f"2-1{delimiter}GB Lands\n"
-            f"0-2{delimiter}R Stompy"
+            f"2-1{delimiter}GB Lands # <-- Observe delimiter and result+deck order\n"
+            f"0-2{delimiter}R Stompy\n"
+            f"1-2{delimiter}UR Tempo"
         )
 
     if input_style == "deck_delimiter_result":
@@ -73,6 +79,95 @@ def check_valid_result(result: str) -> bool:
     return True
 
 
+def _annotate_match_line(line: str, input_style: str, delimiter: str) -> str:
+    """Return one submission line with an inline correction where possible."""
+    stripped = line.strip()
+    if not stripped:
+        return line
+
+    if "," in stripped:
+        return f"{stripped} # <-- put each match on its own line; do not use commas"
+
+    parsed = parse_match_line(stripped, input_style, delimiter)
+    if parsed is not None:
+        _, result = parsed
+        if not check_valid_result(result):
+            return f"{stripped} # <-- result must be W-L, for example `2-1`"
+        return stripped
+
+    # If the score and deck name are unambiguous, repair only the missing
+    # delimiter. This lets users copy the preview straight back into the modal.
+    if input_style == "result_delimiter_deck":
+        match = _RESULT_FIRST_RE.match(stripped)
+        if match:
+            return (
+                f"{match.group(1)}{delimiter}{match.group(2)} "
+                f"# <-- missing delimiter `{delimiter}`"
+            )
+        example = f"2-1{delimiter}Opponent deck"
+    else:
+        match = _RESULT_LAST_RE.match(stripped)
+        if match:
+            return (
+                f"{match.group(1)}{delimiter}{match.group(2)} "
+                f"# <-- missing delimiter `{delimiter}`"
+            )
+        example = f"Opponent deck{delimiter}2-1"
+
+    return f"{stripped} # <-- use the format `{example}`"
+
+
+def build_ladder_correction(
+    raw_text: str,
+    input_style: str,
+    delimiter: str,
+) -> str:
+    """Build a line-by-line correction preview for a ladder submission."""
+    return "\n".join(
+        _annotate_match_line(line, input_style, delimiter)
+        for line in raw_text.splitlines()
+    ).strip()
+
+
+def build_metagame_correction(
+    raw_text: str,
+    input_style: str,
+    delimiter: str,
+) -> str:
+    """Build a copyable correction preview for a Metagame Challenge entry.
+
+    The preview retains the submitted matches and adds comments on the exact
+    header or match line that needs attention. When a run header is absent, a
+    corrected first header is supplied before the user's first match.
+    """
+    lines = raw_text.splitlines()
+    has_valid_header = any(_RUN_HEADER_RE.match(line.strip()) for line in lines)
+    has_header_like_line = any(
+        line.strip().lower().startswith("run") and line.strip().endswith(":")
+        for line in lines
+    )
+    corrected: list[str] = []
+
+    if not has_valid_header and not has_header_like_line:
+        corrected.append("Run 1: # <-- missing run header; add one before your matches")
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            corrected.append(line)
+        elif stripped.lower().startswith("run") and stripped.endswith(":"):
+            if _RUN_HEADER_RE.match(stripped):
+                corrected.append(stripped)
+            else:
+                corrected.append(
+                    f"{stripped} # <-- use a numbered header, for example `Run 1:`"
+                )
+        else:
+            corrected.append(_annotate_match_line(line, input_style, delimiter))
+
+    return "\n".join(corrected).strip()
+
+
 def parse_runs(
     text: str,
     input_style: str,
@@ -127,13 +222,10 @@ def validate_runs_metagame(
     """
     errors = []
 
-    has_header = any(
-        line.strip().lower().startswith("run") and line.strip().endswith(":")
-        for line in raw_text.splitlines()
-    )
+    has_header = any(_RUN_HEADER_RE.match(line.strip()) for line in raw_text.splitlines())
     if not has_header:
         errors.append(
-            "Missing run headers. Each run must start with `Run 1:`, `Run 2:`, etc."
+            "Missing numbered run headers. Each run must start with `Run 1:`, `Run 2:`, etc."
         )
         return errors
 
